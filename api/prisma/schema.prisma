@@ -12,7 +12,7 @@ model User {
   tgId      String?   @unique
   name      String
   city      String?
-  level     Int       @default(3) // 1..7
+  level     Float       @default(3.0)
   isPro     Boolean   @default(false)
   proUntil  DateTime?
   createdAt DateTime  @default(now())

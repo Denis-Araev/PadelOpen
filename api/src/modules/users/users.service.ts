@@ -7,8 +7,11 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   create(dto: CreateUserDto) {
+    const level =
+      typeof dto.level === 'number' ? Math.round(dto.level * 100) / 100 : 3.0;
+
     return this.prisma.user.create({
-      data: { name: dto.name, city: dto.city ?? null, level: dto.level ?? 3 },
+      data: { name: dto.name, city: dto.city ?? null, level },
     });
   }
 

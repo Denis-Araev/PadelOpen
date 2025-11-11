@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  tgId      String?   @unique
+  name      String
+  city      String?
+  level     Int       @default(3) // 1..7
+  isPro     Boolean   @default(false)
+  proUntil  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  // relations (на потом): games, rating history и т.д.
+}
+
+model Club {
+  id        String   @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  isPartner Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // обратная сторона связи
+  games Game[]
+}
+
+model Game {
+  id        String   @id @default(cuid())
+  clubId    String?
+  creatorId String
+  startsAt  DateTime
+  isRating  Boolean  @default(false)
+  levelMin  Int?
+  levelMax  Int?
+  status    String   @default("SCHEDULED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  club Club? @relation(fields: [clubId], references: [id])
+}

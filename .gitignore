@@ -1,0 +1,13 @@
+# Node / Nest
+node_modules
+dist
+coverage
+# Env
+.env
+.env.*
+# Prisma
+prisma/*.db
+# OS
+.DS_Store
+# Docker
+*.local.yml

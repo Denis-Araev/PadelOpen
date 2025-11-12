@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Club" ADD COLUMN     "lat" DOUBLE PRECISION,
+ADD COLUMN     "lng" DOUBLE PRECISION,
+ADD COLUMN     "siteUrl" TEXT,
+ADD COLUMN     "tgUrl" TEXT;

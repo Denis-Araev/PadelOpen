@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import {
   GameCreatedEvent,
@@ -7,47 +7,49 @@ import {
   GameParticipantRejectedEvent,
   GameStatusChangedEvent,
 } from '../../games/events/game-events';
+import { TelegramService } from '../../telegram/telegram.service';
 
 @Injectable()
 export class GameNotificationsListener {
-  private readonly logger = new Logger(GameNotificationsListener.name);
+  constructor(private readonly telegram: TelegramService) {}
 
   @OnEvent('game.created')
   handleGameCreated(event: GameCreatedEvent) {
-    this.logger.log(
-      `Game created: gameId=${event.gameId}, clubId=${event.clubId}, organizer=${event.organizerId}`,
+    this.telegram.sendMessageToClub(
+      event.clubId,
+      `Создана новая игра #${event.gameId}`,
     );
-    // TODO: отправить уведомление в ТГ-чат клуба
   }
 
   @OnEvent('game.join.requested')
   handleJoinRequested(event: GameJoinRequestedEvent) {
-    this.logger.log(
-      `Join requested: gameId=${event.gameId}, userId=${event.userId}`,
+    this.telegram.sendMessageToClub(
+      event.clubId,
+      `Новая заявка на игру #${event.gameId} от пользователя ${event.userId}`,
     );
-    // TODO: уведомить организатора(ов) / админов клуба
   }
 
   @OnEvent('game.participant.approved')
   handleApproved(event: GameParticipantApprovedEvent) {
-    this.logger.log(
-      `Participant approved: gameId=${event.gameId}, userId=${event.userId}`,
+    this.telegram.sendMessageToUser(
+      event.userId,
+      `Ваша заявка на игру #${event.gameId} одобрена`,
     );
-    // TODO: личное уведомление пользователю
   }
 
   @OnEvent('game.participant.rejected')
   handleRejected(event: GameParticipantRejectedEvent) {
-    this.logger.log(
-      `Participant rejected: gameId=${event.gameId}, userId=${event.userId}`,
+    this.telegram.sendMessageToUser(
+      event.userId,
+      `Ваша заявка на игру #${event.gameId} отклонена`,
     );
   }
 
   @OnEvent('game.status.changed')
   handleStatusChanged(event: GameStatusChangedEvent) {
-    this.logger.log(
-      `Game status changed: gameId=${event.gameId}, from=${event.statusFrom}, to=${event.statusTo}`,
+    this.telegram.sendMessageToClub(
+      event.clubId,
+      `Статус игры #${event.gameId} изменён: ${event.statusFrom} → ${event.statusTo}`,
     );
-    // TODO: уведомления при SCHEDULED -> ONGOING, ONGOING -> FINISHED и т.д.
   }
 }

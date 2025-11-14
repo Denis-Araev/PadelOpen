@@ -110,6 +110,7 @@ model Club {
   phone     String?
   siteUrl   String?
   tgUrl     String?
+  tgChatId  String?        
   lat       Float?
   lng       Float?
   isPartner Boolean     @default(false)
@@ -117,7 +118,7 @@ model Club {
   updatedAt DateTime    @updatedAt
 
   games     Game[]
-  members   ClubMember[]  
+  members   ClubMember[]
 }
 
 model ClubMember {

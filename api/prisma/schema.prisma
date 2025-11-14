@@ -31,6 +31,13 @@ enum ParticipationRole {
   ORGANIZER
 }
 
+enum ClubRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+
 model Game {
   id           String         @id @default(cuid())
   clubId       String
@@ -92,10 +99,12 @@ model User {
 
   createdGames     Game[]            @relation("UserCreatedGames")
   gameMemberships  GameParticipant[]
+
+  clubMemberships  ClubMember[]      
 }
 
 model Club {
-  id        String  @id @default(cuid())
+  id        String     @id @default(cuid())
   name      String
   address   String?
   phone     String?
@@ -103,9 +112,26 @@ model Club {
   tgUrl     String?
   lat       Float?
   lng       Float?
-  isPartner Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isPartner Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   games     Game[]
+  members   ClubMember[]  
 }
+
+model ClubMember {
+  id        String   @id @default(cuid())
+  clubId    String
+  userId    String
+  role      ClubRole @default(MEMBER)
+
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([clubId, userId])
+  @@index([userId])
+}
+

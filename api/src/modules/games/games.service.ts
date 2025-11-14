@@ -20,6 +20,27 @@ import {
 export class GamesService {
   constructor(private prisma: PrismaService) {}
 
+  private async canManageGame(
+    game: { id: string; clubId: string; createdById: string },
+    actorId: string,
+  ) {
+    if (game.createdById === actorId) {
+      return true;
+    }
+
+    // локально кастуем prisma к any, чтобы не ругался TS/ESLint на clubMember
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const membership = await (this.prisma as any).clubMember.findFirst({
+      where: {
+        clubId: game.clubId,
+        userId: actorId,
+        role: { in: ['OWNER', 'ADMIN'] },
+      },
+    });
+
+    return Boolean(membership);
+  }
+
   async create(dto: CreateGameDto, createdById: string) {
     const startsAt = new Date(dto.startsAt);
     const endsAt = new Date(dto.endsAt);
@@ -167,8 +188,11 @@ export class GamesService {
         throw new NotFoundException('Game not found');
       }
 
-      if (game.createdById !== actorId) {
-        throw new ForbiddenException('Only organizer can approve participants');
+      const canManage = await this.canManageGame(game, actorId);
+      if (!canManage) {
+        throw new ForbiddenException(
+          'Only club admin/owner or game organizer can approve participants',
+        );
       }
 
       const participant = await tx.gameParticipant.findUnique({
@@ -218,8 +242,11 @@ export class GamesService {
         throw new NotFoundException('Game not found');
       }
 
-      if (game.createdById !== actorId) {
-        throw new ForbiddenException('Only organizer can reject participants');
+      const canManage = await this.canManageGame(game, actorId);
+      if (!canManage) {
+        throw new ForbiddenException(
+          'Only club admin/owner or game organizer can reject participants',
+        );
       }
 
       const participant = await tx.gameParticipant.findUnique({
@@ -249,8 +276,9 @@ export class GamesService {
   async updateStatus(gameId: string, actorId: string, dto: UpdateStatusDto) {
     const game = await this.byId(gameId);
 
-    if (game.createdById !== actorId) {
-      throw new BadRequestException('Forbidden');
+    const canManage = await this.canManageGame(game, actorId);
+    if (!canManage) {
+      throw new ForbiddenException('Forbidden');
     }
 
     const legal: Record<PrismaGameStatus, PrismaGameStatus[]> = {

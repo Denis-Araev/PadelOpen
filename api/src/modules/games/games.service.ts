@@ -15,10 +15,21 @@ import {
   ParticipationRole as PrismaParticipationRole,
   ParticipationStatus as PrismaParticipationStatus,
 } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  GameCreatedEvent,
+  GameStatusChangedEvent,
+  GameJoinRequestedEvent,
+  GameParticipantApprovedEvent,
+  GameParticipantRejectedEvent,
+} from './events/game-events';
 
 @Injectable()
 export class GamesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private events: EventEmitter2,
+  ) {}
 
   private async canManageGame(
     game: { id: string; clubId: string; createdById: string },
@@ -74,6 +85,10 @@ export class GamesService {
       },
       include: { participants: true },
     });
+    this.events.emit(
+      'game.created',
+      new GameCreatedEvent(game.id, game.clubId, createdById),
+    );
 
     return game;
   }
@@ -109,7 +124,47 @@ export class GamesService {
       throw new NotFoundException('Game not found');
     }
 
-    return game;
+    const { participants, ...rest } = game;
+
+    const players = participants.filter(
+      (p) => p.status === PrismaParticipationStatus.GOING,
+    );
+    const requests = participants.filter(
+      (p) => p.status === PrismaParticipationStatus.WAITLIST,
+    );
+    const rejected = participants.filter(
+      (p) => p.status === PrismaParticipationStatus.NOT_GOING,
+    );
+    const maybe = participants.filter(
+      (p) => p.status === PrismaParticipationStatus.MAYBE,
+    );
+
+    const goingCount = players.length;
+    const waitlistCount = requests.length;
+    const maybeCount = maybe.length;
+    const notGoingCount = rejected.length;
+
+    const freeSlots = Math.max(0, rest.maxPlayers - goingCount);
+    const isFull = goingCount >= rest.maxPlayers;
+
+    return {
+      ...rest,
+      participants: {
+        players,
+        requests,
+        rejected,
+        maybe,
+      },
+      stats: {
+        goingCount,
+        waitlistCount,
+        maybeCount,
+        notGoingCount,
+        maxPlayers: rest.maxPlayers,
+        freeSlots,
+        isFull,
+      },
+    };
   }
 
   // Игрок подаёт заявку на участие (WAITLIST)
@@ -140,6 +195,10 @@ export class GamesService {
           note: dto.note,
         },
       });
+      this.events.emit(
+        'game.join.requested',
+        new GameJoinRequestedEvent(gameId, game.clubId, userId),
+      );
 
       return {
         status: participant.status,
@@ -222,6 +281,10 @@ export class GamesService {
           role: PrismaParticipationRole.PLAYER,
         },
       });
+      this.events.emit(
+        'game.participant.approved',
+        new GameParticipantApprovedEvent(gameId, game.clubId, targetUserId),
+      );
 
       return updated;
     });
@@ -268,6 +331,10 @@ export class GamesService {
           role: PrismaParticipationRole.RESERVE,
         },
       });
+      this.events.emit(
+        'game.participant.rejected',
+        new GameParticipantRejectedEvent(gameId, game.clubId, targetUserId),
+      );
 
       return updated;
     });
@@ -302,10 +369,21 @@ export class GamesService {
       throw new BadRequestException('Invalid status transition');
     }
 
+    const previous = game.status;
+
+    if (!allowed.includes(requested)) {
+      throw new BadRequestException('Invalid status transition');
+    }
+
     await this.prisma.game.update({
       where: { id: gameId },
       data: { status: requested },
     });
+
+    this.events.emit(
+      'game.status.changed',
+      new GameStatusChangedEvent(gameId, game.clubId, previous, requested),
+    );
 
     return { status: requested };
   }

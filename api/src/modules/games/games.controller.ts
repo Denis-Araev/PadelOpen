@@ -53,6 +53,24 @@ export class GamesController {
     return this.games.leave(id, user.sub);
   }
 
+  @Post(':id/participants/:userId/approve')
+  approve(
+    @Param('id') gameId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.games.approveParticipant(gameId, user.sub, targetUserId);
+  }
+
+  @Post(':id/participants/:userId/reject')
+  reject(
+    @Param('id') gameId: string,
+    @Param('userId') targetUserId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.games.rejectParticipant(gameId, user.sub, targetUserId);
+  }
+
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,

@@ -6,47 +6,106 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
-model User {
-  id        String    @id @default(cuid())
-  tgId      String?   @unique
-  name      String
-  city      String?
-  level     Float       @default(3.0)
-  isPro     Boolean   @default(false)
-  proUntil  DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  // relations (на потом): games, rating history и т.д.
+enum GameStatus {
+  SCHEDULED
+  ONGOING
+  FINISHED
+  CANCELLED
 }
 
-model Club {
-  id         String   @id @default(cuid())
-  name       String
-  address    String?
-  phone      String?
-  siteUrl    String?
-  tgUrl      String?
-  lat        Float?
-  lng        Float?
-  isPartner  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+enum GameVisibility {
+  PUBLIC
+  PRIVATE
+}
 
-  games      Game[]
+enum ParticipationStatus {
+  GOING
+  NOT_GOING
+  MAYBE
+  WAITLIST
+}
+
+enum ParticipationRole {
+  PLAYER
+  RESERVE
+  ORGANIZER
 }
 
 model Game {
-  id        String   @id @default(cuid())
-  clubId    String?
-  creatorId String
-  startsAt  DateTime
-  isRating  Boolean  @default(false)
-  levelMin  Int?
-  levelMax  Int?
-  status    String   @default("SCHEDULED")
+  id           String         @id @default(cuid())
+  clubId       String
+  club         Club           @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  createdById  String
+  createdBy    User           @relation("UserCreatedGames", fields: [createdById], references: [id], onDelete: Cascade)
+
+  title        String?
+  description  String?
+  startsAt     DateTime
+  endsAt       DateTime
+  timezone     String         @default("Europe/Tallinn")
+
+  maxPlayers   Int            @default(4)
+  visibility   GameVisibility @default(PUBLIC)
+  status       GameStatus     @default(SCHEDULED)
+
+  courtName    String?
+  levelNote    String?
+
+  participants GameParticipant[]
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([clubId, startsAt])
+  @@index([status, startsAt])
+}
+
+model GameParticipant {
+  id        String               @id @default(cuid())
+  gameId    String
+  userId    String
+
+  game      Game                 @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status    ParticipationStatus  @default(GOING)
+  role      ParticipationRole    @default(PLAYER)
+  note      String?
+  joinedAt  DateTime             @default(now())
+
+  @@unique([gameId, userId])
+  @@index([gameId, status, role])
+}
+
+// обратные связи (если нет)
+model User {
+  id               String            @id @default(cuid())
+  name             String
+  city             String?
+  level            Float             @default(3.0)
+  tgId             String?           @unique
+  isPro            Boolean           @default(false)
+  proUntil         DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  createdGames     Game[]            @relation("UserCreatedGames")
+  gameMemberships  GameParticipant[]
+}
+
+model Club {
+  id        String  @id @default(cuid())
+  name      String
+  address   String?
+  phone     String?
+  siteUrl   String?
+  tgUrl     String?
+  lat       Float?
+  lng       Float?
+  isPartner Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  club Club? @relation(fields: [clubId], references: [id])
+  games     Game[]
 }

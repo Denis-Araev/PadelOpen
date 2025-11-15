@@ -8,12 +8,14 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ClubsModule } from './modules/clubs/clubs.module';
 import { GamesModule } from './modules/games/games.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { OrganizersModule } from './modules/organizers/organizers.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     EventEmitterModule.forRoot(),
     NotificationsModule,
+    OrganizersModule,
     LoggerModule.forRoot({
       pinoHttp: {
         transport:

@@ -9,6 +9,7 @@ import { ClubsModule } from './modules/clubs/clubs.module';
 import { GamesModule } from './modules/games/games.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OrganizersModule } from './modules/organizers/organizers.module';
+import { TournamentsModule } from './modules/tournaments/tournaments.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { OrganizersModule } from './modules/organizers/organizers.module';
     EventEmitterModule.forRoot(),
     NotificationsModule,
     OrganizersModule,
+    TournamentsModule,
     LoggerModule.forRoot({
       pinoHttp: {
         transport:

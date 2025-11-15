@@ -6,6 +6,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 enum GameStatus {
   SCHEDULED
   ONGOING
@@ -16,6 +17,20 @@ enum GameStatus {
 enum GameVisibility {
   PUBLIC
   PRIVATE
+}
+
+enum TournamentFormat {
+  AMERICANO
+  MEXICANO
+  MIXED
+  PAIRS
+  OTHER
+}
+
+enum TournamentStatus {
+  PLANNED
+  FINISHED
+  CANCELLED
 }
 
 enum ParticipationStatus {
@@ -43,108 +58,110 @@ enum OrganizerRole {
   MEMBER
 }
 
-
 model Game {
-  id           String         @id @default(cuid())
-  clubId       String
-  club         Club           @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  id     String @id @default(cuid())
+  clubId String
+  club   Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
   organizerId String?
-  organizer   Organizer?      @relation(fields: [organizerId], references: [id], onDelete: SetNull)
+  organizer   Organizer? @relation(fields: [organizerId], references: [id], onDelete: SetNull)
 
-  createdById  String
-  createdBy    User           @relation("UserCreatedGames", fields: [createdById], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User   @relation("UserCreatedGames", fields: [createdById], references: [id], onDelete: Cascade)
 
-  title        String?
-  description  String?
-  startsAt     DateTime
-  endsAt       DateTime
-  timezone     String         @default("Europe/Tallinn")
+  title       String?
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  timezone    String   @default("Europe/Tallinn")
 
-  maxPlayers   Int            @default(4)
-  visibility   GameVisibility @default(PUBLIC)
-  status       GameStatus     @default(SCHEDULED)
+  maxPlayers Int            @default(4)
+  visibility GameVisibility @default(PUBLIC)
+  status     GameStatus     @default(SCHEDULED)
 
-  courtName    String?
-  levelNote    String?
-  
-  isRated     Boolean   @default(false)
-  minLevel    Float?
-  maxLevel    Float?
+  courtName String?
+  levelNote String?
+
+  isRated  Boolean @default(false)
+  minLevel Float?
+  maxLevel Float?
 
   participants GameParticipant[]
 
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([clubId, startsAt])
   @@index([status, startsAt])
 }
 
 model GameParticipant {
-  id        String               @id @default(cuid())
-  gameId    String
-  userId    String
+  id     String @id @default(cuid())
+  gameId String
+  userId String
 
-  game      Game                 @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  status    ParticipationStatus  @default(GOING)
-  role      ParticipationRole    @default(PLAYER)
-  note      String?
-  joinedAt  DateTime             @default(now())
+  status   ParticipationStatus @default(GOING)
+  role     ParticipationRole   @default(PLAYER)
+  note     String?
+  joinedAt DateTime            @default(now())
 
   @@unique([gameId, userId])
   @@index([gameId, status, role])
 }
 
 model User {
-  id               String            @id @default(cuid())
-  name             String
-  city             String?
-  level            Float             @default(3.0)
-  tgId             String?           @unique
-  isPro            Boolean           @default(false)
-  proUntil         DateTime?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id        String    @id @default(cuid())
+  name      String
+  city      String?
+  level     Float     @default(3.0)
+  tgId      String?   @unique
+  isPro     Boolean   @default(false)
+  proUntil  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  createdGames     Game[]            @relation("UserCreatedGames")
-  gameMemberships  GameParticipant[]
+  createdGames    Game[]            @relation("UserCreatedGames")
+  gameMemberships GameParticipant[]
 
-  clubMemberships  ClubMember[]      
+  clubMemberships ClubMember[]
 
   createdOrganizers    Organizer[]       @relation("UserCreatedOrganizers")
   organizerMemberships OrganizerMember[]
+
+  createdTournaments Tournament[]       @relation("UserCreatedTournaments")
+  tournamentResults  TournamentResult[]
 }
 
-
 model Club {
-  id        String     @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
   address   String?
   phone     String?
   siteUrl   String?
   tgUrl     String?
-  tgChatId  String?        
+  tgChatId  String?
   lat       Float?
   lng       Float?
-  isPartner Boolean     @default(false)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  isPartner Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  games     Game[]
-  members   ClubMember[]
+  games       Game[]
+  members     ClubMember[]
+  tournaments Tournament[]
 }
 
 model ClubMember {
-  id        String   @id @default(cuid())
-  clubId    String
-  userId    String
-  role      ClubRole @default(MEMBER)
+  id     String   @id @default(cuid())
+  clubId String
+  userId String
+  role   ClubRole @default(MEMBER)
 
-  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
@@ -152,35 +169,85 @@ model ClubMember {
   @@index([userId])
 }
 
+model Tournament {
+  id String @id @default(cuid())
+
+  // кто создал в приложении
+  createdById String
+  createdBy   User   @relation("UserCreatedTournaments", fields: [createdById], references: [id], onDelete: Cascade)
+
+  organizerId String?
+  organizer   Organizer? @relation(fields: [organizerId], references: [id], onDelete: SetNull)
+
+  clubId String?
+  club   Club?   @relation(fields: [clubId], references: [id], onDelete: SetNull)
+
+  title       String
+  description String?
+
+  format TournamentFormat @default(OTHER)
+  status TournamentStatus @default(PLANNED)
+
+  isRated  Boolean @default(false)
+  minLevel Float?
+  maxLevel Float?
+
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  results TournamentResult[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TournamentResult {
+  id           String @id @default(cuid())
+  tournamentId String
+  userId       String
+
+  tournament Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  position Int
+  points   Int?
+  comment  String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([tournamentId, userId])
+  @@index([userId])
+}
+
 model Organizer {
-  id          String          @id @default(cuid())
+  id          String  @id @default(cuid())
   name        String
   description String?
   logoUrl     String?
   tgChatId    String?
 
   createdById String
-  createdBy   User            @relation("UserCreatedOrganizers", fields: [createdById], references: [id], onDelete: Cascade)
+  createdBy   User   @relation("UserCreatedOrganizers", fields: [createdById], references: [id], onDelete: Cascade)
 
   members     OrganizerMember[]
   games       Game[]
+  tournaments Tournament[]
 
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model OrganizerMember {
-  id          String         @id @default(cuid())
+  id          String        @id @default(cuid())
   organizerId String
   userId      String
-  role        OrganizerRole  @default(MEMBER)
+  role        OrganizerRole @default(MEMBER)
 
-  organizer   Organizer      @relation(fields: [organizerId], references: [id], onDelete: Cascade)
-  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizer Organizer @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt   DateTime       @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([organizerId, userId])
   @@index([userId])
 }
-

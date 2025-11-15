@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Game" ADD COLUMN     "isRated" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "maxLevel" DOUBLE PRECISION,
+ADD COLUMN     "minLevel" DOUBLE PRECISION;

@@ -65,4 +65,20 @@ export class CreateGameDto {
   @IsOptional()
   @IsString()
   levelNote?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  isRated?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Min(1)
+  @Max(7)
+  minLevel?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @Min(1)
+  @Max(7)
+  maxLevel?: number;
 }

@@ -58,6 +58,10 @@ model Game {
 
   courtName    String?
   levelNote    String?
+  
+  isRated     Boolean   @default(false)
+  minLevel    Float?
+  maxLevel    Float?
 
   participants GameParticipant[]
 

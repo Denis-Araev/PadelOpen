@@ -75,6 +75,9 @@ export class GamesService {
           PrismaGameVisibility.PUBLIC,
         courtName: dto.courtName,
         levelNote: dto.levelNote,
+        isRated: dto.isRated ?? false,
+        minLevel: dto.minLevel ?? null,
+        maxLevel: dto.maxLevel ?? null,
         participants: {
           create: {
             userId: createdById,
@@ -126,16 +129,39 @@ export class GamesService {
 
     const { participants, ...rest } = game;
 
-    const players = participants.filter(
+    // Обогащаем участников флагом levelOk
+    const participantsWithLevel = participants.map((p) => {
+      const level = p.user?.level ?? null;
+      const min = rest.minLevel ?? null;
+      const max = rest.maxLevel ?? null;
+
+      let levelOk = true;
+
+      if (level !== null) {
+        if (min !== null && level < min) {
+          levelOk = false;
+        }
+        if (max !== null && level > max) {
+          levelOk = false;
+        }
+      }
+
+      return {
+        ...p,
+        levelOk,
+      };
+    });
+
+    const players = participantsWithLevel.filter(
       (p) => p.status === PrismaParticipationStatus.GOING,
     );
-    const requests = participants.filter(
+    const requests = participantsWithLevel.filter(
       (p) => p.status === PrismaParticipationStatus.WAITLIST,
     );
-    const rejected = participants.filter(
+    const rejected = participantsWithLevel.filter(
       (p) => p.status === PrismaParticipationStatus.NOT_GOING,
     );
-    const maybe = participants.filter(
+    const maybe = participantsWithLevel.filter(
       (p) => p.status === PrismaParticipationStatus.MAYBE,
     );
 

@@ -81,4 +81,9 @@ export class CreateGameDto {
   @Min(1)
   @Max(7)
   maxLevel?: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  organizerId?: string;
 }

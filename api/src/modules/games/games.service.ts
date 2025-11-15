@@ -32,24 +32,54 @@ export class GamesService {
   ) {}
 
   private async canManageGame(
-    game: { id: string; clubId: string; createdById: string },
-    actorId: string,
+    game: {
+      id: string;
+      createdById: string;
+      clubId: string;
+      organizerId?: string | null;
+    },
+    userId: string,
   ) {
-    if (game.createdById === actorId) {
-      return true;
+    // 1. Создатель игры → всегда может
+    if (game.createdById === userId) return true;
+
+    // 2. Управляющие организатора (если игра принадлежит организатору)
+    if (game.organizerId) {
+      const orgMember = await this.prisma.organizerMember.findUnique({
+        where: {
+          organizerId_userId: {
+            organizerId: game.organizerId,
+            userId,
+          },
+        },
+      });
+
+      if (
+        orgMember &&
+        (orgMember.role === 'OWNER' || orgMember.role === 'ADMIN')
+      ) {
+        return true;
+      }
     }
 
-    // локально кастуем prisma к any, чтобы не ругался TS/ESLint на clubMember
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    const membership = await (this.prisma as any).clubMember.findFirst({
+    // 3. Управляющие физического клуба (места)
+    const clubMember = await this.prisma.clubMember.findUnique({
       where: {
-        clubId: game.clubId,
-        userId: actorId,
-        role: { in: ['OWNER', 'ADMIN'] },
+        clubId_userId: {
+          clubId: game.clubId,
+          userId,
+        },
       },
     });
 
-    return Boolean(membership);
+    if (
+      clubMember &&
+      (clubMember.role === 'OWNER' || clubMember.role === 'ADMIN')
+    ) {
+      return true;
+    }
+
+    return false;
   }
 
   async create(dto: CreateGameDto, createdById: string) {
@@ -60,9 +90,31 @@ export class GamesService {
       throw new BadRequestException('endsAt must be after startsAt');
     }
 
+    if (dto.organizerId) {
+      const orgMember = await this.prisma.organizerMember.findUnique({
+        where: {
+          organizerId_userId: {
+            organizerId: dto.organizerId,
+            userId: createdById,
+          },
+        },
+      });
+
+      if (!orgMember) {
+        throw new ForbiddenException('You are not a member of this organizer');
+      }
+
+      if (orgMember.role !== 'OWNER' && orgMember.role !== 'ADMIN') {
+        throw new ForbiddenException(
+          'Only organizer owner/admin can create games',
+        );
+      }
+    }
+
     const game = await this.prisma.game.create({
       data: {
         clubId: dto.clubId,
+        organizerId: dto.organizerId ?? null,
         createdById,
         title: dto.title,
         description: dto.description,
@@ -396,10 +448,6 @@ export class GamesService {
     }
 
     const previous = game.status;
-
-    if (!allowed.includes(requested)) {
-      throw new BadRequestException('Invalid status transition');
-    }
 
     await this.prisma.game.update({
       where: { id: gameId },
